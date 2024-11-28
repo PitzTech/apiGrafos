@@ -1,2 +1,7 @@
 *.json
 *[0-9].json
+
+# Ambiente virtual
+venv/
+env/
+.env

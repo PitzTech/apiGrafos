@@ -39,7 +39,7 @@ class Vertice(Base):
     tipo = Column(Integer)
 
     labirinto = relationship("Labirinto", back_populates="vertices")
-    
+
     # Relacionamento com a tabela Aresta para definir as adjacências
     arestas_origem = relationship("Aresta", foreign_keys=[Aresta.vertice_origem_id], back_populates="vertice_origem")
     arestas_destino = relationship("Aresta", foreign_keys=[Aresta.vertice_destino_id], back_populates="vertice_destino")
@@ -51,7 +51,7 @@ class Vertice(Base):
 
 class Labirinto(Base):
     __tablename__ = 'labirintos'
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     vertices = relationship("Vertice", back_populates="labirinto")
     entrada = Column(Integer)
@@ -65,12 +65,12 @@ class Labirinto(Base):
 
 class Grupo(Base):
     __tablename__ = 'grupos'
-    
+
     id = Column(SQLUUID(as_uuid=True), primary_key=True)
     nome = Column(String)
     labirintos_concluidos = Column(String)
     info_grupos = relationship("InfoGrupo", back_populates="grupo")
-    sessoes_websocket = relationship("SessaoWebSocket", back_populates="grupo")  
+    sessoes_websocket = relationship("SessaoWebSocket", back_populates="grupo")
 
 class InfoGrupo(Base):
     __tablename__ = 'info_grupos'
@@ -89,7 +89,7 @@ class InfoGrupo(Base):
 
 class SessaoWebSocket(Base):
     __tablename__ = 'sessoes_websocket'
-    
+
     id = Column(Integer, primary_key=True, unique=True, autoincrement=True)
     grupo_id = Column(SQLUUID, ForeignKey('grupos.id'))  # Use String type for UUID
     conexao = Column(String)
@@ -109,7 +109,7 @@ class ArestaModel(BaseModel):
 class LabirintoModel(BaseModel):
     vertices: List[VerticeModel]
     arestas: List[ArestaModel]
-    dificuldade: str  
+    dificuldade: str
 
 class GrupoModel(BaseModel):
     nome: str
@@ -189,7 +189,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[""],  # Permite todas as origens. Troque "" por um domínio específico se necessário.
+    allow_origins=["*"],  # Permite todas as origens. Troque "" por um domínio específico se necessário.
     allow_credentials=True,
     allow_methods=["*"],  # Permite todos os métodos (GET, POST, etc.).
     allow_headers=["*"],  # Permite todos os cabeçalhos.
@@ -251,14 +251,14 @@ async def retorna_grupos():
 async def get_labirintos():
     db = next(get_db())
     labirintos = db.query(Labirinto).all()
-    
+
     if not labirintos:
         print("Nenhum labirinto encontrado no banco de dados.")
-    
+
     lista_labirintos = []
     for labirinto in labirintos:
         print(f"Labirinto encontrado: ID={labirinto.id}, Dificuldade={labirinto.dificuldade}")
-        lista_labirintos.append(RetornaLabirintosDto(labirinto=labirinto.id, dificuldade=labirinto.dificuldade))    
+        lista_labirintos.append(RetornaLabirintosDto(labirinto=labirinto.id, dificuldade=labirinto.dificuldade))
     return {"labirintos": lista_labirintos}
 
 @app.get("/labirintos/{grupo_id}")
@@ -274,7 +274,7 @@ async def get_info_labirintos(grupo_id: UUID):
     for info in informacoesGrupo:
         labirinto = info.labirinto  # Acessa o objeto Labirinto relacionado
         grupo = info.grupo  # Acessa o objeto Grupo relacionado
-        
+
         # Criar o DTO para cada InfoGrupo
         labirintoDto = LabirintoDto(
             LabirintoId=labirinto.id,
@@ -300,7 +300,7 @@ async def get_placar():
                 "grupo": grupo,
                 "labirintos": []
             }
-        
+
         # Adiciona o labirinto e suas estatísticas à lista de labirintos do grupo
         placar[grupo]["labirintos"].append({
             "labirinto": dado.labirinto_id,
@@ -316,7 +316,7 @@ async def get_placar():
 async def get_websocket_sessions():
     db = next(get_db())  # Manually obtain database session
     sessoes = db.query(SessaoWebSocket).all()
-    
+
     result = []
     for sessao in sessoes:
         result.append({
@@ -325,7 +325,7 @@ async def get_websocket_sessions():
             "conexao": sessao.conexao,
             "grupo_nome": sessao.grupo.nome if sessao.grupo else None
         })
-    
+
     return result
 
 
@@ -364,7 +364,7 @@ async def websocket_endpoint(websocket: WebSocket, grupo_id: UUID, labirinto_id:
             try:
                 # Espera por uma mensagem do cliente com timeout de 60 segundos
                 data = await asyncio.wait_for(websocket.receive_text(), timeout=60.0)
-                
+
                 if data.startswith("ir:"):
                     # Extrai o id do vértice desejado
                     try:
@@ -385,7 +385,7 @@ async def websocket_endpoint(websocket: WebSocket, grupo_id: UUID, labirinto_id:
                     if not vertice_atual:
                         await manager.send_message("Erro ao acessar o vértice desejado.", websocket)
                         continue
-                    
+
                     aresta = db.query(Aresta).filter(Aresta.vertice_origem_id == vertice_atual.id).all()
 
                     if not aresta:
@@ -399,7 +399,7 @@ async def websocket_endpoint(websocket: WebSocket, grupo_id: UUID, labirinto_id:
                     await manager.send_message(f"Vértice atual: {vertice_atual.id}, Tipo: {vertice_atual.tipo}, Adjacentes(Vertice, Peso): {adjacentes}", websocket)
                 else:
                     await manager.send_message("Comando não reconhecido. Use 'ir: id_do_vertice' para se mover.", websocket)
-            
+
             except asyncio.TimeoutError:
                 # Timeout de 60 segundos sem mensagem, desconecta o WebSocket
                 await manager.send_message("Conexão encerrada por inatividade.", websocket)
@@ -427,14 +427,14 @@ async def generate_websocket_link(connection: WebsocketRequestDto):
         raise HTTPException(status_code=404, detail="Grupo não encontrado")
     if not labirinto:
         raise HTTPException(status_code=404, detail="Labirinto não encontrado")
-    
+
     ws_url = f"ws://localhost:8000/ws/{connection.grupo_id}/{connection.labirinto_id}"
-    
+
     # Salva a sessão no banco de dados
     sessao_ws = SessaoWebSocket(grupo_id=connection.grupo_id, conexao=ws_url)
     db.add(sessao_ws)
     db.commit()
-    
+
     return {"websocket_url": ws_url}
 
 @app.post("/resposta")
@@ -478,7 +478,7 @@ async def enviar_resposta(resposta: RespostaDto):
 
     return {"message": "Labirinto concluído com sucesso"}
 
-    
+
 
 if __name__ == "__main__":
     import uvicorn
